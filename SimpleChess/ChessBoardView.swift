@@ -10,6 +10,7 @@ import UIKit
 final class ChessBoardView: UIView {
     
     var tiles: [UIImageView] = []
+    weak var delegate: ChessBoardViewDelegate?
     
     init() {
         super.init(frame: .zero)
@@ -20,7 +21,22 @@ final class ChessBoardView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func movePiece() {
+    func removePiece(at: Coordinate) {
+        let index = at.row * 8 + at.column
+        tiles[index].image = nil
+    }
+    
+    func movePiece(_ piece: Piece, _ color: Color, to: Coordinate) {
+        var stringColor = " "
+        var stringPiece = " "
+        
+        switch color {
+        case .black:
+            stringColor = "White"
+        case .white:
+            stringColor = "Black"
+        }
+        
         
     }
     
@@ -98,9 +114,28 @@ final class ChessBoardView: UIView {
                 tile.autoresizingMask = []
                 tile.contentMode = .scaleAspectFit
                 tile.backgroundColor = ((i + j) % 2 == 0) ? .gray : .darkGray
+                tile.isUserInteractionEnabled = true
                 tiles.append(tile)
                 addSubview(tile)
+                let tap = UITapGestureRecognizer(target: self, action: #selector(self.handleTap(_:)))
+                tile.addGestureRecognizer(tap)
+            }
+        }
+    }
+    
+    @objc func handleTap(_ sender: UITapGestureRecognizer? = nil) {
+        for index in 0..<tiles.count {
+            if sender?.view == tiles[index] {
+                let column = index % 8
+                let row = (index - column) / 8
+                delegate?.userDidTap(row: row, column: column)
             }
         }
     }
 }
+
+protocol ChessBoardViewDelegate: AnyObject {
+    func userDidTap(row: Int, column: Int)
+}
+
+
