@@ -9,7 +9,7 @@ import UIKit
 
 final class ChessBoardView: UIView {
     
-    var tiles: [UIImageView] = []
+    var tiles: [TileView] = []
     weak var delegate: ChessBoardViewDelegate?
     
     init() {
@@ -26,72 +26,15 @@ final class ChessBoardView: UIView {
         tiles[index].image = nil
     }
     
-    func movePiece(_ piece: Piece, _ color: Color, to: Coordinate) {
-        var stringColor = " "
-        var stringPiece = " "
-        
-        switch color {
-        case .black:
-            stringColor = "White"
-        case .white:
-            stringColor = "Black"
-        }
-        
-        
+    func movePiece(visualPiece: VisualPiece, to: Coordinate) {
+        let index = to.row * 8 + to.column
+        tiles[index].image = visualPiece.image
+    
     }
     
-    func setPiece() {
-        
-    }
-    
-    func resetBoard() {
-        placeBlackPieces()
-        clearCenterTiles()
-        placeWhitePieces()
-    }
-    
-    private func placeBlackPieces() {
-        tiles[0].image = UIImage(named: "Pieces/Black/Rook")!
-        tiles[1].image = UIImage(named: "Pieces/Black/Knight")!
-        tiles[2].image = UIImage(named: "Pieces/Black/Bishop")!
-        tiles[3].image = UIImage(named: "Pieces/Black/Queen")!
-        tiles[4].image = UIImage(named: "Pieces/Black/King")!
-        tiles[5].image = UIImage(named: "Pieces/Black/Bishop")!
-        tiles[6].image = UIImage(named: "Pieces/Black/Knight")!
-        tiles[7].image = UIImage(named: "Pieces/Black/Rook")!
-        tiles[8].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[9].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[10].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[11].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[12].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[13].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[14].image = UIImage(named: "Pieces/Black/Pawn")!
-        tiles[15].image = UIImage(named: "Pieces/Black/Pawn")!
-    }
-    
-    private func clearCenterTiles() {
-        for tile in tiles[16...47] {
-            tile.image = nil
-        }
-    }
-    
-    private func placeWhitePieces() {
-        tiles[48].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[49].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[50].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[51].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[52].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[53].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[54].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[55].image = UIImage(named: "Pieces/White/Pawn")!
-        tiles[56].image = UIImage(named: "Pieces/White/Rook")!
-        tiles[57].image = UIImage(named: "Pieces/White/Knight")!
-        tiles[58].image = UIImage(named: "Pieces/White/Bishop")!
-        tiles[59].image = UIImage(named: "Pieces/White/Queen")!
-        tiles[60].image = UIImage(named: "Pieces/White/King")!
-        tiles[61].image = UIImage(named: "Pieces/White/Bishop")!
-        tiles[62].image = UIImage(named: "Pieces/White/Knight")!
-        tiles[63].image = UIImage(named: "Pieces/White/Rook")!
+    func setPiece(at coordinate: Coordinate, with image: UIImage) {
+        let index = coordinate.row * 8 + coordinate.column
+        tiles[index].image = image
     }
     
     override func layoutSubviews() {
@@ -110,10 +53,16 @@ final class ChessBoardView: UIView {
     private func configureSubviews() {
         for i in 0...7 {
             for j in 0...7 {
-                let tile = UIImageView()
+                var tile: TileView
+                
+                if ((i + j) % 2 == 0) {
+                    tile = TileView(color: .white)
+                } else {
+                    tile = TileView(color: .black)
+                }
+                tile.backgroundColor = tile.backColor
                 tile.autoresizingMask = []
                 tile.contentMode = .scaleAspectFit
-                tile.backgroundColor = ((i + j) % 2 == 0) ? .gray : .darkGray
                 tile.isUserInteractionEnabled = true
                 tiles.append(tile)
                 addSubview(tile)
@@ -130,6 +79,31 @@ final class ChessBoardView: UIView {
                 let row = (index - column) / 8
                 delegate?.userDidTap(row: row, column: column)
             }
+        }
+    }
+}
+
+class TileView: UIImageView {
+    var backColor: UIColor
+    let backlightColor = UIColor(named: "Color")
+    
+    init(color: Color) {
+        switch color {
+        case .black: backColor = .darkGray
+        case .white: backColor = .gray
+        }
+        super.init(frame: .zero)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func makeSelected(_ turnOn: Bool) {
+        if turnOn {
+            self.backgroundColor = backlightColor
+        } else {
+            self.backgroundColor = backColor
         }
     }
 }

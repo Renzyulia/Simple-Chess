@@ -8,11 +8,14 @@
 import UIKit
 
 class ViewController: UIViewController {
+    
+    var gameController: GameController? = nil
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let chessView = ChessBoardView()
+        gameController = GameController()
+        let chessView = gameController!.chessBoardView
         chessView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(chessView)
@@ -23,19 +26,58 @@ class ViewController: UIViewController {
             chessView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             chessView.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
-        
-        chessView.resetBoard()
     }
 }
 
 class GameController: ChessBoardViewDelegate {
     var chessBoardView = ChessBoardView()
-    var board = ChessBoard(storage: StorageForPieces())
+    var board = ChessBoardMutable()
     var numberOfTap = 0
     var selectedPiece: Piece? = nil
+    var positionOfSelectedPiece: Coordinate? = nil
+    var possibleMoves = [Coordinate]()
     
     init() {
         chessBoardView.delegate = self
+        
+        create(piece: Rook(color: .white), at: .init(row: 0, column: 0)!, with: .init(rookWithColor: .white))
+        create(piece: Knight(color: .white), at: .init(row: 0, column: 1)!, with: .init(knightWithColor: .white))
+        create(piece: Bishop(color: .white), at: .init(row: 0, column: 2)!, with: .init(bishopWithColor: .white))
+        create(piece: Queen(color: .white), at: .init(row: 0, column: 3)!, with: .init(queenWithColor: .white))
+        create(piece: King(color: .white), at: .init(row: 0, column: 4)!, with: .init(kingWithColor: .white))
+        create(piece: Bishop(color: .white), at: .init(row: 0, column: 5)!, with: .init(bishopWithColor: .white))
+        create(piece: Knight(color: .white), at: .init(row: 0, column: 6)!, with: .init(knightWithColor: .white))
+        create(piece: Rook(color: .white), at: .init(row: 0, column: 7)!, with: .init(rookWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 0)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 1)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 2)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 3)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 4)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 5)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 6)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .white), at: .init(row: 1, column: 7)!, with: .init(pawnWithColor: .white))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 0)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 1)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 2)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 3)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 4)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 5)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 6)!, with: .init(pawnWithColor: .black))
+        create(piece: Pawn(color: .black), at: .init(row: 6, column: 7)!, with: .init(pawnWithColor: .black))
+        create(piece: Rook(color: .black), at: .init(row: 7, column: 0)!, with: .init(rookWithColor: .black))
+        create(piece: Knight(color: .black), at: .init(row: 7, column: 1)!, with: .init(knightWithColor: .black))
+        create(piece: Bishop(color: .black), at: .init(row: 7, column: 2)!, with: .init(bishopWithColor: .black))
+        create(piece: Queen(color: .black), at: .init(row: 7, column: 3)!, with: .init(queenWithColor: .black))
+        create(piece: King(color: .black), at: .init(row: 7, column: 4)!, with: .init(kingWithColor: .black))
+        create(piece: Bishop(color: .black), at: .init(row: 7, column: 5)!, with: .init(bishopWithColor: .black))
+        create(piece: Knight(color: .black), at: .init(row: 7, column: 6)!, with: .init(knightWithColor: .black))
+        create(piece: Rook(color: .black), at: .init(row: 7, column: 7)!, with: .init(rookWithColor: .black))
+    }
+    
+    func create(piece: Piece, at: Coordinate, with: VisualPiece) {
+        board.storage.add(piece, at: at)
+        board.visualPieces.append(Pair(piece: piece, visualPiece: with))
+        chessBoardView.setPiece(at: at, with: with.image)
     }
     
     func userDidTap(row: Int, column: Int) {
@@ -43,12 +85,61 @@ class GameController: ChessBoardViewDelegate {
         case 0:
             if let piece = board.storage.piece(at: .init(row: row, column: column)!) {
                 selectedPiece = piece
+                positionOfSelectedPiece = Coordinate(row: row, column: column)
                 numberOfTap = 1
+                
+                let context = ContextForPiece(piece: selectedPiece!, coordinate: .init(row: row, column: column)!, board: board)
+                for move in piece.possibleMoves(in: context) {
+                    let moveCoordinate = Coordinate(row: row + move.row, column: column + move.column)
+                    let shadowBoard = board.board(afterMovingPieceFrom: .init(row: row, column: column)!, to: moveCoordinate!)
+                    if shadowBoard.hasCheck(for: piece.color) == false {
+                        possibleMoves.append(moveCoordinate!)
+                    }
+                }
+                
+                for move in possibleMoves {
+                    let index = move.row * 8 + move.column
+                    chessBoardView.tiles[index].makeSelected(true)
+                }
             }
         case 1:
-            //сначала мы проверяем, что наша фигура, выбранная на первом тапе может ходить на выбранную вторым тапом клетку
-            // если она может ходить, то мы проверяем не возникнет ли шаха королю этим ходом
-            //если не возникает, то можно сходить
+            for move in possibleMoves {
+                let index = move.row * 8 + move.column
+                chessBoardView.tiles[index].makeSelected(false)
+            }
+            
+            for move in possibleMoves {
+                if move.row == row && move.column == column {  // здесь мы проверяем, что в нашем массиве, который мы сделали на первом тапе (исключили шаги, которые ведут к шаху), есть клетка, на которую мы нажали
+                    let tile = board.tile(at: move, for: selectedPiece!.color) // если есть, то мы выявляем какой у нее тип
+                    
+                    var visualPiece: VisualPiece! = nil // здесь мы сразу находим нашу картинку для выбранной фигуры
+                    for pair in board.visualPieces {
+                        if pair.piece === selectedPiece! {
+                            visualPiece = pair.visualPiece
+                        }
+                    }
+                    
+                    if tile == Tile.withEnemy { // если клетка занята врагом, то
+                        chessBoardView.removePiece(at: move) // мы удаляем на доске эту вражескую фигуру
+                        chessBoardView.removePiece(at: positionOfSelectedPiece!) //удаляем нашу фигуру с прошлого места
+                        chessBoardView.movePiece(visualPiece: visualPiece, to: move) //вставляем ее на новое место
+                        
+                        let enemyPiece = board.storage.piece(at: .init(row: row, column: column)!)
+                        board.storage.remove(enemyPiece!) // удаляем фигуру из board
+                        board.storage.move(selectedPiece!, to: .init(row: row, column: column)!) // передвигаем фигуру внутри board
+                        selectedPiece?.didMove()
+                    } else if tile == Tile.isEmpty { 
+                        chessBoardView.removePiece(at: positionOfSelectedPiece!)
+                        chessBoardView.movePiece(visualPiece: visualPiece, to: move)
+                        board.storage.move(selectedPiece!, to: .init(row: row, column: column)!)
+                        selectedPiece?.didMove()
+                    }
+                }
+            }
+            numberOfTap = 0
+            possibleMoves.removeAll() //очищаем наш массив возможных ходов
+            selectedPiece = nil //обнуляем выбранную фигуру
+            positionOfSelectedPiece = nil //обнуляем координату выбранной фигуры
         default: break
         }
     }
@@ -64,12 +155,12 @@ struct Coordinate {
     var column: Int
     
     init?(row: Int, column: Int) {
-        if row < 8 {
+        if row < 8 && row >= 0 {
             self.row = row
         } else {
             return nil
         }
-        if column < 8 {
+        if column < 8 && column >= 0 {
             self.column = column
         } else {
             return nil
@@ -90,7 +181,7 @@ struct RelativePosition {
 protocol GameContext {
     func tile(at: RelativePosition) -> Tile
     func board(afterMovingTo: RelativePosition) -> GameContext
-    func position(moveForwardUpTo: Int) -> RelativePosition
+    func position(moveForwardUpTo: Int, moveHorizontalTo: Int) -> RelativePosition
 }
 
 class ContextForPiece: GameContext {
@@ -118,11 +209,11 @@ class ContextForPiece: GameContext {
         return ContextForPiece(piece: piece, coordinate: absoluteCoordinate, board: shadowBoard)
     }
     
-    func position(moveForwardUpTo: Int) -> RelativePosition {
+    func position(moveForwardUpTo: Int, moveHorizontalTo: Int) -> RelativePosition {
         if piece.color == .white {
-            return .init(row: -(moveForwardUpTo), column: 0)
+            return .init(row: moveForwardUpTo, column: moveHorizontalTo)
         } else {
-            return .init(row: moveForwardUpTo, column: 0)
+            return .init(row: -(moveForwardUpTo), column: moveHorizontalTo)
         }
     }
 }
@@ -162,22 +253,76 @@ protocol Board: AnyObject {
     func board(afterMovingPieceFrom: Coordinate, to: Coordinate) -> Board
 }
 
-class ChessBoard: Board {
-    let storage: Storage
+struct VisualPiece {
+    let image: UIImage
+
+    init(kingWithColor: Color) {
+        switch kingWithColor {
+        case .white: image = UIImage(named: "Pieces/White/King")!
+        case .black: image = UIImage(named: "Pieces/Black/King")!
+        }
+    }
+    
+    init(queenWithColor: Color) {
+        switch queenWithColor {
+        case .white: image = UIImage(named: "Pieces/White/Queen")!
+        case .black: image = UIImage(named: "Pieces/Black/Queen")!
+        }
+    }
+    
+    init(rookWithColor: Color) {
+        switch rookWithColor {
+        case .white: image = UIImage(named: "Pieces/White/Rook")!
+        case .black: image = UIImage(named: "Pieces/Black/Rook")!
+        }
+    }
+    
+    init(knightWithColor: Color) {
+        switch knightWithColor {
+        case .white: image = UIImage(named: "Pieces/White/Knight")!
+        case .black: image = UIImage(named: "Pieces/Black/Knight")!
+        }
+    }
+    
+    init(bishopWithColor: Color) {
+        switch bishopWithColor {
+        case .white: image = UIImage(named: "Pieces/White/Bishop")!
+        case .black: image = UIImage(named: "Pieces/Black/Bishop")!
+        }
+    }
+    
+    init(pawnWithColor: Color) {
+        switch pawnWithColor {
+        case .white: image = UIImage(named: "Pieces/White/Pawn")!
+        case .black: image = UIImage(named: "Pieces/Black/Pawn")!
+        }
+    }
+}
+
+struct Pair {
+  var piece: Piece
+  var visualPiece: VisualPiece
+}
+
+class ChessBoardMutable: Board {
+    var storage: MutableStorage
     var pieces: [Piece] {
         return storage.pieces
     }
+    var visualPieces: [Pair] = []
     
-    init(storage: Storage) {
-        self.storage = storage
+    init() {
+        storage = StorageForPieces()
     }
     
     func kingPosition(for color: Color) -> Coordinate {
+        var coordinate: Coordinate? = nil
         for piece in pieces {
             if piece.isKing && piece.color == color {
-                return storage.coordinate(of: piece)!
+                coordinate = storage.coordinate(of: piece)!
             }
         }
+        return coordinate!
     }
     
     func tile(at: Coordinate, for color: Color) -> Tile {
@@ -197,9 +342,9 @@ class ChessBoard: Board {
         let kingPosition = kingPosition(for: color)
         
         for piece in pieces {
-            let coordinate = self.storage.coordinate(of: piece)
-            let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: self)
             if piece.color != color {
+                let coordinate = self.storage.coordinate(of: piece)
+                let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: self)
                 for move in piece.possibleMoves(in: context) {
                     if move.row == kingPosition.row && move.column == kingPosition.column {
                         return true
@@ -207,12 +352,71 @@ class ChessBoard: Board {
                 }
             }
         }
+        return false
     }
     
     func board(afterMovingPieceFrom: Coordinate, to: Coordinate) -> Board {
         let movedPiece = storage.piece(at: afterMovingPieceFrom)
         let shadowStorage = storage.shadow(byMoving: movedPiece!, to: to)
-        let board = ChessBoard(storage: shadowStorage)
+        let board = ChessBoardReadOnly(storage: shadowStorage)
+        return board
+    }
+}
+
+class ChessBoardReadOnly: Board {
+    let storage: Storage
+    var pieces: [Piece] {
+        return storage.pieces
+    }
+    
+    init(storage: Storage) {
+        self.storage = storage
+    }
+    
+    func kingPosition(for color: Color) -> Coordinate {
+        var coordinate: Coordinate? = nil
+        for piece in pieces {
+            if piece.isKing && piece.color == color {
+                coordinate = storage.coordinate(of: piece)!
+            }
+        }
+        return coordinate!
+    }
+    
+    func tile(at: Coordinate, for color: Color) -> Tile {
+        var isEmpty = false
+        var isTakenByEnemy = false
+        
+        let piece: Piece? = storage.piece(at: at)
+        if piece == nil {
+            isEmpty = true
+        } else if piece?.color != color {
+            isTakenByEnemy = true
+        }
+        return Tile(isValid: true, isEmpty: isEmpty, isTakenByEnemy: isTakenByEnemy)
+    }
+    
+    func hasCheck(for color: Color) -> Bool {
+        let kingPosition = kingPosition(for: color) //черный
+        
+        for piece in pieces {
+            if piece.color != color {
+                let coordinate = self.storage.coordinate(of: piece)
+                let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: self)
+                for move in piece.possibleMoves(in: context) {
+                    if move.row == kingPosition.row && move.column == kingPosition.column {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+    
+    func board(afterMovingPieceFrom: Coordinate, to: Coordinate) -> Board {
+        let movedPiece = storage.piece(at: afterMovingPieceFrom)
+        let shadowStorage = storage.shadow(byMoving: movedPiece!, to: to)
+        let board = ChessBoardReadOnly(storage: shadowStorage)
         return board
     }
 }
@@ -226,6 +430,29 @@ protocol Storage: AnyObject {
     func shadow(byRemoving: Piece) -> Storage
     func shadow(byAdding: Piece, at: Coordinate) -> Storage
     func shadow(byMoving: Piece, to: Coordinate) -> Storage
+}
+
+extension Storage {
+    func shadow(byRemoving: Piece) -> Storage {
+        let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: byRemoving)
+        return shadowStorage
+    }
+    
+    func shadow(byAdding: Piece, at: Coordinate) -> Storage {
+        let shadowStorage = ShadowStorageAdditingPiece(originalStorage: self, addedPiece: byAdding, coordinate: at)
+        return shadowStorage
+    }
+    
+    func shadow(byMoving: Piece, to: Coordinate) -> Storage {
+        let enemyPieces: Piece? = piece(at: to)
+        if enemyPieces != nil {
+            let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: enemyPieces!)
+            return shadowStorage.shadow(byMoving: byMoving, to: to)
+        } else {
+            let shadowStorage = ShadowStorageMovingPiece(originalStorage: self, movedPiece: byMoving, coordinate: to)
+            return shadowStorage
+        }
+    }
 }
 
 protocol MutableStorage: Storage {
@@ -243,40 +470,7 @@ class StorageForPieces: Storage, MutableStorage {
         return pieces
     }
     
-    var boardElement = [
-        BoardElement(piece: Rook(color: .white), coordinate: .init(row: 0, column: 0)!),
-        BoardElement(piece: Knight(color: .white), coordinate: .init(row: 0, column: 1)!),
-        BoardElement(piece: Bishop(color: .white), coordinate: .init(row: 0, column: 2)!),
-        BoardElement(piece: Queen(color: .white), coordinate: .init(row: 0, column: 3)!),
-        BoardElement(piece: King(color: .white), coordinate: .init(row: 0, column: 4)!),
-        BoardElement(piece: Bishop(color: .white), coordinate: .init(row: 0, column: 5)!),
-        BoardElement(piece: Knight(color: .white), coordinate: .init(row: 0, column: 6)!),
-        BoardElement(piece: Rook(color: .white), coordinate: .init(row: 0, column: 7)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 0)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 1)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 2)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 3)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 4)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 5)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 6)!),
-        BoardElement(piece: Pawn(color: .white), coordinate: .init(row: 1, column: 7)!),
-        BoardElement(piece: Rook(color: .black), coordinate: .init(row: 6, column: 0)!),
-        BoardElement(piece: Knight(color: .black), coordinate: .init(row: 6, column: 1)!),
-        BoardElement(piece: Bishop(color: .black), coordinate: .init(row: 6, column: 2)!),
-        BoardElement(piece: Queen(color: .black), coordinate: .init(row: 6, column: 3)!),
-        BoardElement(piece: King(color: .black), coordinate: .init(row: 6, column: 4)!),
-        BoardElement(piece: Bishop(color: .black), coordinate: .init(row: 6, column: 5)!),
-        BoardElement(piece: Knight(color: .black), coordinate: .init(row: 6, column: 6)!),
-        BoardElement(piece: Rook(color: .black), coordinate: .init(row: 6, column: 7)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 0)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 1)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 2)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 3)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 4)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 5)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 6)!),
-        BoardElement(piece: Pawn(color: .black), coordinate: .init(row: 7, column: 7)!)
-    ]
+    var boardElement: [BoardElement] = []
     
     func piece(at: Coordinate) -> Piece? {
         var piece: Piece? = nil
@@ -317,30 +511,24 @@ class StorageForPieces: Storage, MutableStorage {
         var index = 0
         for i in 0..<array.count {
             if array[i].piece === piece {
-                index = 1
+                index = i
             }
         }
         return index
     }
-    
-    func shadow(byRemoving: Piece) -> Storage {
-        let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: byRemoving)
-        return shadowStorage
-    }
-    
-    func shadow(byAdding: Piece, at: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageAdditingPiece(originalStorage: self, addedPiece: byAdding, coordinate: at)
-        return shadowStorage
-    }
-    
-    func shadow(byMoving: Piece, to: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageMovingPiece(originalStorage: self, movedPiece: byMoving, coordinate: to)
-        return shadowStorage
-    }
 }
 
 class ShadowStorageRemovingPiece: Storage {
-    var pieces: [Piece] = []
+    var pieces: [Piece] {
+        var pieces = originalStorage.pieces
+        for index in 0..<pieces.count {
+            if pieces[index] === removedPiece {
+                pieces.remove(at: index)
+                break
+            }
+        }
+        return pieces
+    }
     let originalStorage: Storage
     let removedPiece: Piece
     
@@ -350,7 +538,12 @@ class ShadowStorageRemovingPiece: Storage {
     }
     
     func piece(at: Coordinate) -> Piece? {
-        return originalStorage.piece(at: at)
+        let piece = originalStorage.piece(at: at)
+        if piece === removedPiece {
+            return nil
+        } else {
+            return piece
+        }
     }
     
     func coordinate(of: Piece) -> Coordinate? {
@@ -360,25 +553,12 @@ class ShadowStorageRemovingPiece: Storage {
             return originalStorage.coordinate(of: of)
         }
     }
-    
-    func shadow(byRemoving: Piece) -> Storage {
-        let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: byRemoving)
-        return shadowStorage
-    }
-    
-    func shadow(byAdding: Piece, at: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageAdditingPiece(originalStorage: self, addedPiece: byAdding, coordinate: at)
-        return shadowStorage
-    }
-    
-    func shadow(byMoving: Piece, to: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageMovingPiece(originalStorage: self, movedPiece: byMoving, coordinate: to)
-        return shadowStorage
-    }
 }
 
 class ShadowStorageMovingPiece: Storage {
-    var pieces: [Piece] = []
+    var pieces: [Piece] {
+        return originalStorage.pieces
+    }
     var originalStorage: Storage
     var movedPiece: Piece
     var coordinate: Coordinate
@@ -407,25 +587,14 @@ class ShadowStorageMovingPiece: Storage {
             return originalStorage.coordinate(of: of)
         }
     }
-    
-    func shadow(byRemoving: Piece) -> Storage {
-        let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: byRemoving)
-        return shadowStorage
-    }
-    
-    func shadow(byAdding: Piece, at: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageAdditingPiece(originalStorage: self, addedPiece: byAdding, coordinate: at)
-        return shadowStorage
-    }
-    
-    func shadow(byMoving: Piece, to: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageMovingPiece(originalStorage: self, movedPiece: byMoving, coordinate: to)
-        return shadowStorage
-    }
 }
 
 class ShadowStorageAdditingPiece: Storage {
-    var pieces: [Piece] = []
+    var pieces: [Piece] {
+        var pieces = originalStorage.pieces
+        pieces.append(addedPiece)
+        return pieces
+    }
     var originalStorage: Storage
     var addedPiece: Piece
     var coordinate: Coordinate
@@ -451,21 +620,6 @@ class ShadowStorageAdditingPiece: Storage {
         } else {
             return originalStorage.coordinate(of: of)
         }
-    }
-    
-    func shadow(byRemoving: Piece) -> Storage {
-        let shadowStorage = ShadowStorageRemovingPiece(originalStorage: self, removedPiece: byRemoving)
-        return shadowStorage
-    }
-    
-    func shadow(byAdding: Piece, at: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageAdditingPiece(originalStorage: self, addedPiece: byAdding, coordinate: at)
-        return shadowStorage
-    }
-    
-    func shadow(byMoving: Piece, to: Coordinate) -> Storage {
-        let shadowStorage = ShadowStorageMovingPiece(originalStorage: self, movedPiece: byMoving, coordinate: to)
-        return shadowStorage
     }
 }
 
@@ -493,12 +647,16 @@ class Rook: Piece {
         var column = 0 + columnOffset
         
         while true {
-            var tile = context.tile(at: .init(row: row, column: column))
+            let tile = context.tile(at: .init(row: row, column: column))
             if tile == Tile.invalid {
                 break
-            } else if tile == Tile.withEnemy {
-                possibleMoves.append(.init(row: row, column: column))
-                break
+            } else if tile != Tile.isEmpty {
+                if tile == Tile.withEnemy {
+                    possibleMoves.append(.init(row: row, column: column))
+                    break
+                } else {
+                    break
+                }
             } else {
                 possibleMoves.append(.init(row: row, column: column))
             }
@@ -509,7 +667,6 @@ class Rook: Piece {
     }
     
     func didMove() {
-        <#code#>
     }
 }
 
@@ -531,7 +688,7 @@ class Queen: Piece {
         let possibleMovesDiagonallyUpAndRight = move(rowOffset: 1, columnOffset: 1, context: context)
         let possibleMovesDiagonallyDownAndRight = move(rowOffset: -1, columnOffset: 1, context: context)
         
-        let possibleMoves = possibleMovesDown + possibleMovesLeft + possibleMovesUp + possibleMovesRight + possibleMovesDiagonallyUpAndLeft + possibleMovesDiagonallyDownAndLeft + possibleMovesDiagonallyUpAndRight + possibleMovesDiagonallyDownAndLeft
+        let possibleMoves = possibleMovesDown + possibleMovesLeft + possibleMovesUp + possibleMovesRight + possibleMovesDiagonallyUpAndLeft + possibleMovesDiagonallyDownAndLeft + possibleMovesDiagonallyUpAndRight + possibleMovesDiagonallyDownAndRight
         
         return possibleMoves
     }
@@ -542,12 +699,16 @@ class Queen: Piece {
         var column = 0 + columnOffset
         
         while true {
-            var tile = context.tile(at: .init(row: row, column: column))
+            let tile = context.tile(at: .init(row: row, column: column))
             if tile == Tile.invalid {
                 break
-            } else if tile == Tile.withEnemy {
-                possibleMoves.append(.init(row: row, column: column))
-                break
+            } else if tile != Tile.isEmpty {
+                if tile == Tile.withEnemy {
+                    possibleMoves.append(.init(row: row, column: column))
+                    break
+                } else {
+                    break
+                }
             } else {
                 possibleMoves.append(.init(row: row, column: column))
             }
@@ -558,7 +719,6 @@ class Queen: Piece {
     }
     
     func didMove() {
-        <#code#>
     }
 }
 
@@ -571,29 +731,36 @@ class Knight: Piece {
     }
     
     func possibleMoves(in context: GameContext) -> [RelativePosition] {
-        let moveRightAndUp = move(to: .init(row: 1, column: 2), context: context)
-        let moveRightAndDown = move(to: .init(row: -1, column: 2), context: context)
-        let moveDownAndRight = move(to: .init(row: -2, column: 1), context: context)
-        let moveDownAndLeft = move(to: .init(row: -2, column: -1), context: context)
-        let moveLeftAndDown = move(to: .init(row: -1, column: -2), context: context)
-        let moveLeftAndUp = move(to: .init(row: 1, column: -2), context: context)
-        let moveUpAndLeft = move(to: .init(row: 2, column: -1), context: context)
-        let moveUpAndRight = move(to: .init(row: 2, column: 1), context: context)
+        let relativePositions = [RelativePosition(row: 1, column: 2), // moveRightAndUp
+                                 RelativePosition(row: -1, column: 2), //moveRightAndDown
+                                 RelativePosition(row: -2, column: 1), //moveDownAndRight
+                                 RelativePosition(row: -2, column: -1), //moveDownAndLeft
+                                 RelativePosition(row: -1, column: -2), //moveLeftAndDown
+                                 RelativePosition(row: 1, column: -2), //moveLeftAndUp
+                                 RelativePosition(row: 2, column: -1), //moveUpAndLeft
+                                 RelativePosition(row: 2, column: 1)] //moveUpAndRight
         
-        let possibleMoves = [moveRightAndDown, moveRightAndUp, moveDownAndRight, moveDownAndLeft, moveLeftAndDown, moveLeftAndUp, moveRightAndDown, moveUpAndRight]
+        var possibleMoves = [RelativePosition]()
+        
+        for coordinate in relativePositions {
+            if move(to: coordinate, context: context) {
+                possibleMoves.append(coordinate)
+            }
+        }
         
         return possibleMoves
     }
     
-    func move(to: RelativePosition, context: GameContext) -> RelativePosition {
-        var tile = context.tile(at: to)
+    func move(to: RelativePosition, context: GameContext) -> Bool {
+        let tile = context.tile(at: to)
         if tile == Tile.isEmpty || tile == Tile.withEnemy {
-            return to
+            return true
+        } else {
+            return false
         }
     }
     
     func didMove() {
-        <#code#>
     }
 }
 
@@ -622,12 +789,16 @@ class Bishop: Piece {
         var column = 0 + columnOffset
         
         while true {
-            var tile = context.tile(at: .init(row: row, column: column))
+            let tile = context.tile(at: .init(row: row, column: column))
             if tile == Tile.invalid {
                 break
-            } else if tile == Tile.withEnemy {
-                possibleMoves.append(.init(row: row, column: column))
-                break
+            } else if tile != Tile.isEmpty {
+                if tile == Tile.withEnemy {
+                    possibleMoves.append(.init(row: row, column: column))
+                    break
+                } else {
+                    break
+                }
             } else {
                 possibleMoves.append(.init(row: row, column: column))
             }
@@ -638,7 +809,6 @@ class Bishop: Piece {
     }
     
     func didMove() {
-        <#code#>
     }
 }
 
@@ -651,27 +821,36 @@ class King: Piece {
     }
     
     func possibleMoves(in context: GameContext) -> [RelativePosition] {
-        let moveUp = move(to: .init(row: 1, column: 0), context: context)
-        let moveDiagonallyUpAndRight = move(to: .init(row: 1, column: 1), context: context)
-        let moveRight = move(to: .init(row: 0, column: 1), context: context)
-        let moveDiagonallyDownAndRight = move(to: .init(row: -1, column: 1), context: context)
-        let moveDown = move(to: .init(row: -1, column: 0), context: context)
-        let moveDiagonallyDownAndLeft = move(to: .init(row: -1, column: -1), context: context)
-        let moveLeft = move(to: .init(row: 0, column: -1), context: context)
-        let moveDiagonallyUpAndLeft = move(to: .init(row: 1, column: -1), context: context)
+        var possibleMoves = [RelativePosition]()
         
-        let possibleMoves = [moveUp, moveDiagonallyUpAndRight, moveRight, moveDiagonallyDownAndRight, moveDown, moveDiagonallyDownAndLeft, moveLeft, moveDiagonallyUpAndLeft]
+        let relativePositions = [RelativePosition(row: 1, column: 0), //moveUp
+                                 RelativePosition(row: 1, column: 1), //moveDiagonallyUpAndRight
+                                 RelativePosition(row: 0, column: 1), //moveRight
+                                 RelativePosition(row: -1, column: 1), //moveDiagonallyDownAndRight
+                                 RelativePosition(row: -1, column: 0), //moveDown
+                                 RelativePosition(row: -1, column: -1), //moveDiagonallyDownAndLeft
+                                 RelativePosition(row: 0, column: -1), //moveLeft
+                                 RelativePosition(row: 1, column: -1)] //moveDiagonallyUpAndLeft
+        
+        for coordinate in relativePositions {
+            if move(to: coordinate, context: context) {
+                possibleMoves.append(coordinate)
+            }
+        }
+        
+        return possibleMoves
     }
     
-    func move(to: RelativePosition, context: GameContext) -> RelativePosition {
-        var tile = context.tile(at: to)
+    func move(to: RelativePosition, context: GameContext) -> Bool {
+        let tile = context.tile(at: to)
         if tile == Tile.isEmpty || tile == Tile.withEnemy {
-            return to
+            return true
+        } else {
+            return false
         }
     }
     
     func didMove() {
-        <#code#>
     }
 }
 
@@ -689,34 +868,35 @@ class Pawn: Piece {
         
         switch firstMove {
         case true:
-            let twoTilesUp = context.tile(at: .init(row: 2, column: 0))
-            if twoTilesUp == Tile.isEmpty {
-                possibleMoves.append(.init(row: 2, column: 0))
+            let twoTilesUp = context.tile(at: context.position(moveForwardUpTo: 2, moveHorizontalTo: 0))
+            let oneTileUp = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: 0))
+            if twoTilesUp == Tile.isEmpty && oneTileUp == Tile.isEmpty {
+                possibleMoves.append(context.position(moveForwardUpTo: 2, moveHorizontalTo: 0))
             }
-            let oneTileUp = context.tile(at: .init(row: 1, column: 0))
             if oneTileUp == Tile.isEmpty {
-                possibleMoves.append(.init(row: 1, column: 0))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: 0))
             }
-            let tileDiagonallyRight = context.tile(at: .init(row: 1, column: -1))
+            let tileDiagonallyRight = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: 1))
             if tileDiagonallyRight == Tile.withEnemy {
-                possibleMoves.append(.init(row: 1, column: -1))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: 1))
             }
-            let tileDiagonallyLeft = context.tile(at: .init(row: 1, column: 1))
+            let tileDiagonallyLeft = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: -1))
             if tileDiagonallyLeft == Tile.withEnemy {
-                possibleMoves.append(.init(row: 1, column: 1))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: -1))
             }
+            
         case false:
-            let oneTileUp = context.tile(at: .init(row: 1, column: 0))
+            let oneTileUp = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: 0))
             if oneTileUp == Tile.isEmpty {
-                possibleMoves.append(.init(row: 1, column: 0))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: 0))
             }
-            let tileDiagonallyRight = context.tile(at: .init(row: 1, column: -1))
+            let tileDiagonallyRight = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: 1))
             if tileDiagonallyRight == Tile.withEnemy {
-                possibleMoves.append(.init(row: 1, column: -1))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: 1))
             }
-            let tileDiagonallyLeft = context.tile(at: .init(row: 1, column: 1))
+            let tileDiagonallyLeft = context.tile(at: context.position(moveForwardUpTo: 1, moveHorizontalTo: -1))
             if tileDiagonallyLeft == Tile.withEnemy {
-                possibleMoves.append(.init(row: 1, column: 1))
+                possibleMoves.append(context.position(moveForwardUpTo: 1, moveHorizontalTo: -1))
             }
         }
         return possibleMoves
