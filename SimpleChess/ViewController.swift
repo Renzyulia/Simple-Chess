@@ -7,14 +7,15 @@
 
 import UIKit
 
-class ViewController: UIViewController {
-    
+class ViewController: UIViewController, GameControllerDelegate {
     var gameController: GameController? = nil
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
         gameController = GameController()
+        gameController?.delegate = self
+        
         let chessView = gameController!.chessBoardView
         chessView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -27,12 +28,49 @@ class ViewController: UIViewController {
             chessView.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
     }
+    
+    func gameOver(with: StatusGame) {
+        let label = UILabel()
+        var text: String {
+            switch with {
+            case .WhiteWin: return "Game Over!" + "\n" + "White win"
+            case .BlackWin: return "Game Over!" + "\n" + "Black win"
+            case .Draw: return "Game Over!" + "\n" + "Draw"
+            }
+        }
+        label.text = text
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.font = label.font.withSize(35)
+        label.backgroundColor = UIColor(named: "Color")
+        
+        view.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.widthAnchor.constraint(equalTo: view.widthAnchor),
+            label.heightAnchor.constraint(equalToConstant: 100)])
+    }
+}
+
+protocol GameControllerDelegate: AnyObject {
+    func gameOver(with: StatusGame)
+}
+
+enum StatusGame {
+    case WhiteWin
+    case BlackWin
+    case Draw
 }
 
 class GameController: ChessBoardViewDelegate {
     var chessBoardView = ChessBoardView()
+    weak var delegate: GameControllerDelegate?
     var board = ChessBoardMutable()
     var numberOfTap = 0
+    var moveOfWhite = true
     var selectedPiece: Piece? = nil
     var positionOfSelectedPiece: Coordinate? = nil
     var possibleMoves = [Coordinate]()
@@ -84,17 +122,32 @@ class GameController: ChessBoardViewDelegate {
         switch numberOfTap {
         case 0:
             if let piece = board.storage.piece(at: .init(row: row, column: column)!) {
-                selectedPiece = piece
-                positionOfSelectedPiece = Coordinate(row: row, column: column)
-                numberOfTap = 1
-                
-                let context = ContextForPiece(piece: selectedPiece!, coordinate: .init(row: row, column: column)!, board: board)
-                for move in piece.possibleMoves(in: context) {
-                    let moveCoordinate = Coordinate(row: row + move.row, column: column + move.column)
-                    let shadowBoard = board.board(afterMovingPieceFrom: .init(row: row, column: column)!, to: moveCoordinate!)
-                    if shadowBoard.hasCheck(for: piece.color) == false {
-                        possibleMoves.append(moveCoordinate!)
+                if moveOfWhite {
+                    if piece.color == .white {
+                        selectedPiece = piece
+                        positionOfSelectedPiece = Coordinate(row: row, column: column)
+                        numberOfTap = 1
                     }
+                } else {
+                    if piece.color == .black {
+                        selectedPiece = piece
+                        positionOfSelectedPiece = Coordinate(row: row, column: column)
+                        numberOfTap = 1
+                    }
+                }
+                guard selectedPiece != nil else { return }
+                let context = ContextForPiece(piece: selectedPiece!, coordinate: .init(row: row, column: column)!, board: board)
+                for move in context.possibleMoves() {
+                    let shadowBoard = board.board(afterMovingPieceFrom: .init(row: row, column: column)!, to: move)
+                    if shadowBoard.hasCheck(for: piece.color) == false {
+                        possibleMoves.append(move)
+                    }
+                }
+                
+                if possibleMoves.isEmpty {
+                    numberOfTap = 0
+                    selectedPiece = nil
+                    positionOfSelectedPiece = nil
                 }
                 
                 for move in possibleMoves {
@@ -128,14 +181,74 @@ class GameController: ChessBoardViewDelegate {
                         board.storage.remove(enemyPiece!) // удаляем фигуру из board
                         board.storage.move(selectedPiece!, to: .init(row: row, column: column)!) // передвигаем фигуру внутри board
                         selectedPiece?.didMove()
-                    } else if tile == Tile.isEmpty { 
+                        
+                        moveOfWhite = !moveOfWhite
+                    } else if tile == Tile.isEmpty {
                         chessBoardView.removePiece(at: positionOfSelectedPiece!)
                         chessBoardView.movePiece(visualPiece: visualPiece, to: move)
                         board.storage.move(selectedPiece!, to: .init(row: row, column: column)!)
                         selectedPiece?.didMove()
+                        moveOfWhite = !moveOfWhite
                     }
                 }
             }
+            
+            // вот этот кусочек кода нужно как-то упростить, но я не знаю можно ли так делать, тут если повторы кода, может быть в метод вынести? И может быть еще что-то упростить можно?
+            var colorEnemy = Color.black
+            if selectedPiece!.color == .black {
+                colorEnemy = .white
+            } else {
+                colorEnemy = .black
+            }
+            
+            var moveIsPossible = false
+            
+            if board.hasCheck(for: colorEnemy) {
+                for piece in board.storage.pieces {
+                    if piece.color == colorEnemy {
+                        let coordinate = board.storage.coordinate(of: piece)
+                        let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: board)
+                        for move in context.possibleMoves() {
+                            if board.board(afterMovingPieceFrom: coordinate!, to: move).hasCheck(for: colorEnemy) == false {
+                                moveIsPossible = true
+                                break
+                            }
+                        }
+                    }
+                }
+                if moveIsPossible == false {
+                    if colorEnemy == .white {
+                        delegate?.gameOver(with: .BlackWin)
+                    } else {
+                        delegate?.gameOver(with: .WhiteWin)
+                    }
+                }
+            } else {
+                for piece in board.storage.pieces {
+                    if piece.color == colorEnemy {
+                        let coordinate = board.storage.coordinate(of: piece)
+                        let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: board)
+                        for move in context.possibleMoves() {
+                            if board.board(afterMovingPieceFrom: coordinate!, to: move).hasCheck(for: colorEnemy) == false {
+                                moveIsPossible = true
+                                break
+                            }
+                        }
+                    }
+                }
+                if moveIsPossible == false {
+                    delegate?.gameOver(with: .Draw)
+                }
+            }
+            if board.pieces.count == 2 {
+                for piece in board.pieces {
+                    if piece.isKing {
+                        delegate?.gameOver(with: .Draw)
+                        break
+                    }
+                }
+            }
+            
             numberOfTap = 0
             possibleMoves.removeAll() //очищаем наш массив возможных ходов
             selectedPiece = nil //обнуляем выбранную фигуру
@@ -181,6 +294,7 @@ struct RelativePosition {
 protocol GameContext {
     func tile(at: RelativePosition) -> Tile
     func board(afterMovingTo: RelativePosition) -> GameContext
+    func possibleMoves() -> [Coordinate]
     func position(moveForwardUpTo: Int, moveHorizontalTo: Int) -> RelativePosition
 }
 
@@ -215,6 +329,15 @@ class ContextForPiece: GameContext {
         } else {
             return .init(row: -(moveForwardUpTo), column: moveHorizontalTo)
         }
+    }
+    
+    func possibleMoves() -> [Coordinate] {
+        var possibleMoves = [Coordinate]()
+        for move in piece.possibleMoves(in: self) {
+            let coordinate = Coordinate(row: coordinate.row + move.row, column: coordinate.column + move.column)
+            possibleMoves.append(coordinate!)
+        }
+        return possibleMoves
     }
 }
 
@@ -345,7 +468,7 @@ class ChessBoardMutable: Board {
             if piece.color != color {
                 let coordinate = self.storage.coordinate(of: piece)
                 let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: self)
-                for move in piece.possibleMoves(in: context) {
+                for move in context.possibleMoves() {
                     if move.row == kingPosition.row && move.column == kingPosition.column {
                         return true
                     }
@@ -403,7 +526,7 @@ class ChessBoardReadOnly: Board {
             if piece.color != color {
                 let coordinate = self.storage.coordinate(of: piece)
                 let context = ContextForPiece(piece: piece, coordinate: coordinate!, board: self)
-                for move in piece.possibleMoves(in: context) {
+                for move in context.possibleMoves() {
                     if move.row == kingPosition.row && move.column == kingPosition.column {
                         return true
                     }

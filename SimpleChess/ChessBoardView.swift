@@ -29,7 +29,6 @@ final class ChessBoardView: UIView {
     func movePiece(visualPiece: VisualPiece, to: Coordinate) {
         let index = to.row * 8 + to.column
         tiles[index].image = visualPiece.image
-    
     }
     
     func setPiece(at coordinate: Coordinate, with image: UIImage) {
